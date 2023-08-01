@@ -3,23 +3,27 @@
 # 1. 如何安装
 
 ## 1.1 安装 Virtualbox
+
 http://www.virtualbox.org
 
 ## 1.2 安装 Vagrant
-https://developer.hashicorp.com/vagrant/downloads?product_intent=vagrant
 
+https://developer.hashicorp.com/vagrant/downloads?product_intent=vagrant
 
 # 2. 快速开始
 
-* 启动 Dotnet Docker 构建环境  
+* 启动 dotnet 构建环境
+
 ```
 cd dotnet-build
 vagrant up
 vagrant ssh
 ```
-* 启动 dotnet 构建环境
+
+* 启动 docker 构建环境
+
 ```
-cd dotnet-build
+cd docker-build
 vagrant up
 upgrant ssh
 ```
@@ -29,6 +33,7 @@ upgrant ssh
 ## 3.1 初始化配置
 
 * 初始化新的配置
+
 ```
 mkdir xxx
 cd xxx

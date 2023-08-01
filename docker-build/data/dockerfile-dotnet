@@ -28,4 +28,3 @@ cd libgdiplus  && \
 make && \
 make install && \
 ln -s /usr/local/lib/libgdiplus.so /usr/lib64/libgdiplus.so
-
