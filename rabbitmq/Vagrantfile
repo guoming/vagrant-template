@@ -1,0 +1,179 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# All Vagrant configuration is done below. The "2" in Vagrant.configure
+# configures the configuration version (we support older styles for
+# backwards compatibility). Please don't change it unless you know what
+# you're doing.
+Vagrant.configure("2") do |config|
+  # The most common configuration options are documented and commented below.
+  # For a complete reference, please see the online documentation at
+  # https://docs.vagrantup.com.
+
+  # Every Vagrant development environment requires a box. You can search for
+  # boxes at https://vagrantcloud.com/search.
+  config.vm.box = "generic/centos7"
+
+  # Disable automatic box update checking. If you disable this, then
+  # boxes will only be checked for updates when the user runs
+  # `vagrant box outdated`. This is not recommended.
+  # config.vm.box_check_update = false
+
+  # Create a forwarded port mapping which allows access to a specific port
+  # within the machine from a port on the host machine. In the example below,
+  # accessing "localhost:8080" will access port 80 on the guest machine.
+  # NOTE: This will enable public access to the opened port
+  # config.vm.network "forwarded_port", guest: 81, host: 8081
+
+  # Create a forwarded port mapping which allows access to a specific port
+  # within the machine from a port on the host machine and only allow access
+  # via 127.0.0.1 to disable public access
+  # config.vm.network "forwarded_port", guest: 80, host: 8080, host_ip: "127.0.0.1"
+
+  # Create a private network, which allows host-only access to the machine
+  # using a specific IP.
+  # config.vm.network "private_network", ip: "192.168.33.10"
+
+  # Create a public network, which generally matched to bridged network.
+  # Bridged networks make the machine appear as another physical device on
+  # your network.
+  # config.vm.network "public_network"
+
+  # Share an additional folder to the guest VM. The first argument is
+  # the path on the host to the actual folder. The second argument is
+  # the path on the guest to mount the folder. And the optional third
+  # argument is a set of non-required options.
+  #config.vm.synced_folder "./data", "/vagrant_data"
+
+  # Disable the default share of the current code directory. Doing this
+  # provides improved isolation between the vagrant box and your host
+  # by making sure your Vagrantfile isn't accessable to the vagrant box.
+  # If you use this you may want to enable additional shared subfolders as
+  # shown above.
+  #config.vm.synced_folder ".", "/vagrant", disabled: true
+
+  # Provider-specific configuration so you can fine-tune various
+  # backing providers for Vagrant. These expose provider-specific options.
+  # Example for VirtualBox:
+  #
+  # config.vm.provider "virtualbox" do |vb|
+  #   # Display the VirtualBox GUI when booting the machine
+  #   vb.gui = true
+  #
+  #   # Customize the amount of memory on the VM:
+  #   vb.memory = "1024"
+  # end
+  #
+  # View the documentation for the provider you are using for more
+  # information on available options.
+  config.vm.provider "virtualbox" do |vb|
+    vb.memory = "1024" # 调整为更低值
+  end
+  # Enable provisioning with a shell script. Additional provisioners such as
+  # Ansible, Chef, Docker, Puppet and Salt are also available. Please see the
+  # documentation for more information about their specific syntax and use.
+  config.vm.provision "shell", inline: <<-SHELL
+
+    # 修改 /etc/yum.repos.d/CentOS-Base.repo 文件，切换为阿里云镜像
+    sed -i 's|#baseurl=http://mirror.centos.org/centos/$releasever/os/$basearch/|baseurl=http://mirrors.aliyun.com/centos-vault/7.9.2009/os/x86_64/|g' /etc/yum.repos.d/CentOS-Base.repo && \
+    sed -i 's|mirrorlist=http://mirrorlist.centos.org/|#mirrorlist=http://mirrorlist.centos.org/|g' /etc/yum.repos.d/CentOS-Base.repo && \
+    sed -i 's|#baseurl=http://mirror.centos.org/centos/$releasever/updates/$basearch/|baseurl=http://mirrors.aliyun.com/centos-vault/7.9.2009/updates/x86_64/|g' /etc/yum.repos.d/CentOS-Base.repo && \
+    sed -i 's|#baseurl=http://mirror.centos.org/centos/$releasever/extras/$basearch/|baseurl=http://mirrors.aliyun.com/centos-vault/7.9.2009/extras/x86_64/|g' /etc/yum.repos.d/CentOS-Base.repo && \
+    sed -i 's|#baseurl=http://mirror.centos.org/centos/$releasever/centosplus/$basearch/|baseurl=http://mirrors.aliyun.com/centos-vault/7.9.2009/centosplus/x86_64/|g' /etc/yum.repos.d/CentOS-Base.repo && \
+    sed -i 's|#baseurl=http://mirror.centos.org/centos/$releasever/updates/$basearch/|baseurl=http://mirrors.aliyun.com/centos-vault/7.9.2009/updates/x86_64/|g' /etc/yum.repos.d/CentOS-Base.repo
+
+    sudo yum install -y epel-release
+    sudo yum install -y wget,telnet
+
+    # 安装 erlang
+    sudo yum install -y erlang
+
+    # 导入 RabbitMQ 的仓库配置
+    wget https://dl.bintray.com/rabbitmq/rpm/rabbitmq-server/v3.9.x/el/7/rabbitmq-server-3.9.10-1.el7.noarch.rpm
+    sudo rpm -Uvh rabbitmq-server-3.9.10-1.el7.noarch.rpm
+
+    # 安装 RabbitMQ
+    sudo yum install -y rabbitmq-server
+
+    # 统一Cookie文件内容
+    sudo echo 'NKFQOJYEBVIYUELLCXKS' > /var/lib/rabbitmq/.erlang.cookie
+    sudo chmod 600 /var/lib/rabbitmq/.erlang.cookie
+    sudo chown rabbitmq.rabbitmq /var/lib/rabbitmq/.erlang.cookie
+
+    # 写入 /etc/hosts 文件
+    echo '192.168.1.101 rabbitmq-node1' >> /etc/hosts
+    echo '192.168.1.102 rabbitmq-node2' >> /etc/hosts
+    echo '192.168.1.103 rabbitmq-node3' >> /etc/hosts
+
+    #默认密码
+    sudo rabbitmqctl change_password guest 123456    
+    sudo rabbitmqctl add_user admin admin
+    sudo rabbitmqctl set_user_tags admin administrator
+
+    # 启用 RabbitMQ 管理插件
+    sudo rabbitmq-plugins enable rabbitmq_management
+
+    # 设置 RabbitMQ 服务开机自启
+    sudo systemctl enable rabbitmq-server
+    # 启动 RabbitMQ 服务
+    sudo systemctl start rabbitmq-server
+
+    # # 开放 RabbitMQ 的 AMQP 协议端口（默认端口 5672）
+    # sudo firewall-cmd --zone=public --add-port=5672/tcp --permanent
+
+    # # 开放 RabbitMQ 管理插件的 Web 界面端口（默认端口 15672）
+    # sudo firewall-cmd --zone=public --add-port=15672/tcp --permanent
+
+    # # 重新加载防火墙配置
+    # sudo firewall-cmd --reload
+  SHELL
+
+    # 集群节点 1
+  config.vm.define "rabbitmq-node1", primary: true do |vb|
+    vb.vm.network :private_network, ip: "192.168.1.101"
+    vb.vm.hostname='rabbitmq-node1'
+    # 可以映射多个端口
+    vb.vm.network "forwarded_port", guest: 5672, host: 5673
+    # 可以映射多个端口
+    vb.vm.network "forwarded_port", guest: 15672, host: 15673
+
+    vb.vm.provision "shell", inline: <<-SHELL
+
+    SHELL
+
+  end
+
+
+  # 集群节点 1
+  config.vm.define "rabbitmq-node2", primary: true do |vb|
+    vb.vm.network :private_network, ip: "192.168.1.102"
+    vb.vm.hostname='rabbitmq-node2'
+    vb.vm.provision "shell", inline: <<-SHELL
+
+      sudo rabbitmqctl stop_app
+      sudo rabbitmqctl join_cluster rabbit@rabbitmq-node1
+      sudo rabbitmqctl start_app
+
+    SHELL
+
+  end
+
+
+  #集群节点 1
+  config.vm.define "rabbitmq-node3", primary: true do |vb|
+    vb.vm.network :private_network, ip: "192.168.1.103"
+    vb.vm.hostname='rabbitmq-node3'
+    vb.vm.provision "shell", inline: <<-SHELL
+
+      sudo rabbitmqctl stop_app
+      sudo rabbitmqctl join_cluster rabbit@rabbitmq-node1
+      sudo rabbitmqctl start_app
+
+    SHELL
+
+  end
+
+
+
+
+end

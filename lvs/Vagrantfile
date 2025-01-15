@@ -1,0 +1,114 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# All Vagrant configuration is done below. The "2" in Vagrant.configure
+# configures the configuration version (we support older styles for
+# backwards compatibility). Please don't change it unless you know what
+# you're doing.
+Vagrant.configure("2") do |config|
+
+  config.vm.box = "generic/centos7"
+  
+  config.vm.provision "shell", inline: <<-SHELL
+
+    #关闭防火墙
+    systemctl stop firewalld
+    systemctl disable firewalld
+
+    #禁用selinux
+    setenforce 0
+
+  SHELL
+
+
+  #路由器
+  config.vm.define "router", primary: true do |vb|
+    vb.vm.network :private_network, ip: "192.168.1.1"
+    vb.vm.network :private_network, ip: "192.168.2.1"
+    vb.vm.hostname='router'
+    vb.vm.provision "shell", inline: <<-SHELL
+
+      #启动IP转发
+      grep 'net.ipv4.ip_forward = 1' /etc/sysctl.conf || echo 'net.ipv4.ip_forward = 1' >> /etc/sysctl.conf
+      sysctl -p
+
+
+      #设置路由
+      route add -net 192.168.1.0/24 gw 192.168.1.1 dev eth1
+      route add -net 192.168.2.0/24 gw 192.168.1.1 dev eth2
+      route add -net 192.168.8.0/24 gw 192.168.1.1 dev eth2
+
+    SHELL
+  end
+  
+  #客户端
+  config.vm.define "cs", primary: true do |vb|
+      vb.vm.network :private_network, ip: "192.168.1.2"
+      vb.vm.hostname='cs1'
+      vb.vm.provision "shell", inline: <<-SHELL
+
+        yum install nc -y
+
+
+        #设置路由
+        route add -net 192.168.1.0/24 gw 192.168.1.1 dev eth1
+        route add -net 192.168.2.0/24 gw 192.168.1.1 dev eth1
+        route add -net 192.168.8.0/24 gw 192.168.1.1 dev eth1
+
+      SHELL
+
+  end
+
+  #DR
+  config.vm.define "ds1", primary: true do |vb|
+    vb.vm.network :private_network, ip: "192.168.2.11"
+    vb.vm.hostname='ds1'
+    vb.vm.provision "shell", inline: <<-SHELL
+
+      yum install keepalived -y
+      yum install ipvsadm -y
+ 
+    SHELL
+
+  end
+
+
+  #DR
+  config.vm.define "ds2", primary: true do |vb|
+    vb.vm.network :private_network, ip: "192.168.2.12"
+    vb.vm.hostname='ds2'
+    vb.vm.provision "shell", inline: <<-SHELL
+
+      yum install keepalived -y
+      yum install ipvsadm -y
+
+    SHELL
+
+  end
+
+
+  #RS服务器
+  config.vm.define "rs1", primary: true do |vb|
+    vb.vm.network :private_network, ip: "192.168.2.21"
+    vb.vm.hostname='rs1'
+    vb.vm.provision "shell", inline: <<-SHELL
+
+      yum install nc -y
+
+    SHELL
+
+  end
+
+  #RS服务器
+  config.vm.define "rs2", primary: true do |vb|
+    vb.vm.network :private_network, ip: "192.168.2.22"
+    vb.vm.hostname='rs2'
+    vb.vm.provision "shell", inline: <<-SHELL
+
+      yum install nc -y
+
+    SHELL
+
+  end
+
+end
